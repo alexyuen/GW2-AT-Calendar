@@ -23,6 +23,7 @@ public class ATCalendar {
         }
     }
 
+    // need to account for timezones because the base tournament times are different in every timezone
     private static LocalDateTime fromPST(int year, int month, int day, int hour, int minute) {
         return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneId.of("PST", ZoneId.SHORT_IDS)).withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
     }
@@ -31,7 +32,7 @@ public class ATCalendar {
         // get current time
         LocalDateTime now = LocalDateTime.now();
 
-        // find the time for the next tournaments by comparing to the current time
+        // find the time for the upcoming tournaments by adding 23 hours to each until they're in the future
         for (Tournament t : Tournament.values()) {
             while (t.startTime.isBefore(now)) {
                 t.startTime = t.startTime.plusHours(23);
@@ -42,18 +43,19 @@ public class ATCalendar {
         Tournament[] next = Tournament.values();
         Arrays.sort(next, (Tournament t1, Tournament t2) -> t1.startTime.compareTo(t2.startTime));
 
-        // print
+        // print upcoming daily tournaments
+        System.out.println("Upcoming ATs:");
         for (Tournament t : next) {
             System.out.println(t + ": " + until(now, t.startTime) + " - " + t.startTime.format(DateTimeFormatter.ofPattern("h:mm a EEEE")));
         }
 
-        // find the next monthly tournament
+        // find and print the next monthly tournament
         LocalDateTime monthly = fromPST(2018, 5, 26, 12, 15);
         while (monthly.isBefore(now)) {
             monthly = monthly.plusMonths(1);
         }
         monthly = monthly.with(TemporalAdjusters.lastInMonth(DayOfWeek.SATURDAY));
-        System.out.println("Monthly: " + monthly.toString());
+        System.out.println("Monthly: " + monthly.format(DateTimeFormatter.ofPattern("MMM d uuuu h:mm a EEEE")));
     }
 
     private String until(LocalDateTime from, LocalDateTime to) {
