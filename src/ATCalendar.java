@@ -9,12 +9,13 @@ import java.time.ZoneId;
 
 public class ATCalendar {
 
+    // Data structure to store the four daily ATs and their base start time in UTC
     enum Tournament {
 
-        Balthazar(fromUTC(2018, 5, 6, 3, 15)),
-        Grenth(fromUTC(2018, 5, 5, 10, 15)),
-        Lyssa(fromUTC(2018, 5, 5, 21, 15)),
-        Melandru(fromUTC(2018, 5, 5, 16, 15));
+        Balthazar(baseTime(2018, 5, 6, 3, 15)),
+        Grenth(baseTime(2018, 5, 5, 10, 15)),
+        Lyssa(baseTime(2018, 5, 5, 21, 15)),
+        Melandru(baseTime(2018, 5, 5, 16, 15));
 
         private ZonedDateTime startTime;
 
@@ -23,21 +24,29 @@ public class ATCalendar {
         }
     }
 
+    // create a ZoneDateTime in UTC
+    private static ZonedDateTime baseTime(int year, int month, int day, int hour, int minute) {
+        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneId.of("Z"));
+    }
+
     // convert from UTC to local time zone
-    private static ZonedDateTime fromUTC(int year, int month, int day, int hour, int minute) {
-        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneId.of("Z"))
-                .withZoneSameInstant(ZoneId.systemDefault());
+    private ZonedDateTime fromUTC(ZonedDateTime utc) {
+        return utc.withZoneSameInstant(ZoneId.systemDefault());
     }
 
     public void printSchedule() {
         // get current time
         ZonedDateTime now = ZonedDateTime.now();
 
-        // find the time for the upcoming tournaments by adding 23 hours to each until they're in the future
+        // Find the next occurrance of each daily tournament
+        double secondsin23hours = 60 * 60 * 23;
         for (Tournament t : Tournament.values()) {
-            while (t.startTime.isBefore(now)) {
-                t.startTime = t.startTime.plusHours(23);
-            }
+            // calculate the number of seconds between the base time and now
+            long difference = ChronoUnit.SECONDS.between(t.startTime, now);
+            // calculate the number of 23 hour periods elapsed since base time
+            double hours = Math.ceil(difference / secondsin23hours);
+            // add one more 23 hour period
+            t.startTime = t.startTime.plusSeconds((long) (hours * secondsin23hours));
         }
 
         // sort tournaments by earliest time
@@ -49,16 +58,16 @@ public class ATCalendar {
 
         for (Tournament t : next) {
             System.out.println(t + ": " + until(now, t.startTime) + " - "
-                    + t.startTime.format(DateTimeFormatter.ofPattern("h:mm a EEEE")));
+                    + fromUTC(t.startTime).format(DateTimeFormatter.ofPattern("h:mm a EEEE")));
         }
 
         // find and print the next monthly tournament
-        ZonedDateTime monthly = fromUTC(2018, 5, 26, 19, 15);
+        ZonedDateTime monthly = baseTime(2018, 5, 26, 19, 15);
         while (monthly.isBefore(now)) {
             monthly = monthly.plusMonths(1);
         }
         monthly = monthly.with(TemporalAdjusters.lastInMonth(DayOfWeek.SATURDAY));
-        System.out.println("Monthly: " + monthly.format(DateTimeFormatter.ofPattern("MMM d uuuu h:mm a EEEE")));
+        System.out.println("Monthly: " + monthly.format(DateTimeFormatter.ofPattern("MMM d uuuu h:mm a EEEE")) + " (" + ChronoUnit.DAYS.between(now, monthly) + " days)");
     }
 
     // returns a String with the remaining time in hours and minutes
